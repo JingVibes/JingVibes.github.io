@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Goals Tracker</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Lucide React icons as inline SVG components
+        const Check = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
+        );
+        
+        const Award = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="8" r="7"></circle>
+                <polyline points="8.21,13.89 7,23 12,20 17,23 15.79,13.88"></polyline>
+            </svg>
+        );
+        
+        const Target = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="6"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+        );
+        
+        const Calendar = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        );
+
+        const DailyGoalsTracker = () => {
+            const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+            const [dailyData, setDailyData] = useState(() => {
+                const saved = localStorage.getItem('dailyGoalsData');
+                return saved ? JSON.parse(saved) : {};
+            });
+            const [showRewards, setShowRewards] = useState(false);
+
+            // Save to localStorage whenever data changes
+            useEffect(() => {
+                localStorage.setItem('dailyGoalsData', JSON.stringify(dailyData));
+            }, [dailyData]);
+
+            // Initialize today's data if it doesn't exist
+            useEffect(() => {
+                if (!dailyData[currentDate]) {
+                    setDailyData(prev => ({
+                        ...prev,
+                        [currentDate]: {
+                            eatingAfter8: false,
+                            movedAfterEating: false,
+                            exerciseType: '',
+                            exerciseCompleted: false,
+                            screenDistance: false,
+                            earnedScreenTime: false,
+                            transitBike: false,
+                            moodColor: ''
+                        }
+                    }));
+                }
+            }, [currentDate, dailyData]);
+
+            const updateGoal = (goal, value) => {
+                setDailyData(prev => ({
+                    ...prev,
+                    [currentDate]: {
+                        ...prev[currentDate],
+                        [goal]: value
+                    }
+                }));
+            };
+
+            const todaysData = dailyData[currentDate] || {};
+
+            // Calculate streaks and consistency
+            const calculateStats = () => {
+                const dates = Object.keys(dailyData).sort();
+                let currentStreak = 0;
+                let totalDays = dates.length;
+                let consistentDays = 0;
+
+                dates.reverse().forEach((date, index) => {
+                    const data = dailyData[date];
+                    const goalsHit = [
+                        !data.eatingAfter8, // didn't eat after 8
+                        data.movedAfterEating,
+                        data.exerciseCompleted,
+                        data.screenDistance,
+                        data.earnedScreenTime
+                    ].filter(Boolean).length;
+
+                    if (goalsHit >= 3) { // At least 3 goals hit = consistent day
+                        consistentDays++;
+                        if (index === currentStreak) currentStreak++;
+                    }
+                });
+
+                return { currentStreak, consistentDays, totalDays };
+            };
+
+            const stats = calculateStats();
+
+            return (
+                <div className="max-w-md mx-auto bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
+                    {/* Header */}
+                    <div className="bg-white shadow-sm p-4 sticky top-0 z-10">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-xl font-bold text-gray-800">Daily Goals</h1>
+                                <p className="text-sm text-gray-600">{new Date(currentDate).toLocaleDateString()}</p>
+                            </div>
+                            <button
+                                onClick={() => setShowRewards(!showRewards)}
+                                className="p-2 bg-purple-100 rounded-full"
+                            >
+                                <Award />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                        {/* Stats Card */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Target />
+                                <h2 className="font-semibold text-gray-800">Progress</h2>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 text-center">
+                                <div>
+                                    <div className="text-2xl font-bold text-blue-600">{stats.currentStreak}</div>
+                                    <div className="text-xs text-gray-600">Current Streak</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-green-600">{stats.consistentDays}</div>
+                                    <div className="text-xs text-gray-600">Consistent Days</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-purple-600">{Math.round((stats.consistentDays/Math.max(stats.totalDays,1))*100)}%</div>
+                                    <div className="text-xs text-gray-600">Success Rate</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Mood Color */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <h3 className="font-semibold text-gray-800 mb-3">🌈 Today's Mood</h3>
+                            <div className="space-y-3">
+                                {/* Gradient Bar */}
+                                <div 
+                                    className="h-12 w-full rounded-lg bg-gradient-to-r from-red-400 via-yellow-400 via-green-400 via-blue-400 to-purple-400 relative cursor-pointer"
+                                    onClick={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = e.clientX - rect.left;
+                                        const percentage = (x / rect.width) * 100;
+                                        
+                                        // Convert percentage to hue (0-300 for red to purple range)
+                                        const hue = Math.round((percentage / 100) * 300);
+                                        updateGoal('moodColor', `hsl(${hue}, 65%, 60%)`);
+                                    }}
+                                >
+                                    {todaysData.moodColor && (
+                                        <div 
+                                            className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-6 h-6 bg-white rounded-full shadow-lg border-2 border-gray-800 flex items-center justify-center"
+                                            style={{ 
+                                                left: todaysData.moodColor.includes('hsl') 
+                                                    ? `${(parseInt(todaysData.moodColor.match(/\d+/)[0]) / 300) * 100}%`
+                                                    : '50%'
+                                            }}
+                                        >
+                                            <div 
+                                                className="w-3 h-3 rounded-full"
+                                                style={{ backgroundColor: todaysData.moodColor }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Color display */}
+                                {todaysData.moodColor && (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <div 
+                                            className="w-6 h-6 rounded-full border-2 border-gray-300"
+                                            style={{ backgroundColor: todaysData.moodColor }}
+                                        />
+                                        <span className="text-sm text-gray-600">
+                                            Your mood color for today
+                                        </span>
+                                    </div>
+                                )}
+                                
+                                <p className="text-xs text-gray-500 text-center">
+                                    Tap anywhere on the gradient to pick your mood color<br/>
+                                    Red → Yellow → Green → Blue (sad/low) → Purple
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Rewards Section */}
+                        {showRewards && (
+                            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 shadow-sm">
+                                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                    <Award />
+                                    Rewards Progress
+                                </h3>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center p-2 bg-white rounded-lg">
+                                        <span className="text-sm">Massage (1 month)</span>
+                                        <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                            {Math.min(stats.consistentDays, 30)}/30 days
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-white rounded-lg">
+                                        <span className="text-sm">Impulse Buy (3 months)</span>
+                                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">
+                                            {Math.min(stats.consistentDays, 90)}/90 days
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Eating Patterns */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <h3 className="font-semibold text-gray-800 mb-3">🍽️ Eating Patterns</h3>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm">Stopped eating after 8 PM</span>
+                                    <button
+                                        onClick={() => updateGoal('eatingAfter8', !todaysData.eatingAfter8)}
+                                        className={`p-2 rounded-full ${todaysData.eatingAfter8 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+                                    >
+                                        <Check />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm">Moved after eating</span>
+                                    <button
+                                        onClick={() => updateGoal('movedAfterEating', !todaysData.movedAfterEating)}
+                                        className={`p-2 rounded-full ${todaysData.movedAfterEating ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+                                    >
+                                        <Check />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Movement */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <h3 className="font-semibold text-gray-800 mb-3">💪 Movement</h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-sm text-gray-600 block mb-2">Today's exercise:</label>
+                                    <select
+                                        value={todaysData.exerciseType}
+                                        onChange={(e) => {
+                                            updateGoal('exerciseType', e.target.value);
+                                            updateGoal('exerciseCompleted', e.target.value !== '');
+                                        }}
+                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                    >
+                                        <option value="">Select exercise type</option>
+                                        <option value="run">🏃‍♀️ Run</option>
+                                        <option value="strength">🏋️‍♀️ Strength Training</option>
+                                        <option value="yoga">🧘‍♀️ Yoga</option>
+                                        <option value="other">🚶‍♀️ Other Activity</option>
+                                        <option value="rest">😴 Rest Day</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Screen Time */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <h3 className="font-semibold text-gray-800 mb-3">📱 Screen Time</h3>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm">Kept screen distance</span>
+                                    <button
+                                        onClick={() => updateGoal('screenDistance', !todaysData.screenDistance)}
+                                        className={`p-2 rounded-full ${todaysData.screenDistance ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+                                    >
+                                        <Check />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm">Earned screen time</span>
+                                    <button
+                                        onClick={() => updateGoal('earnedScreenTime', !todaysData.earnedScreenTime)}
+                                        className={`p-2 rounded-full ${todaysData.earnedScreenTime ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+                                    >
+                                        <Check />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Transportation (Not counted in success metrics) */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <h3 className="font-semibold text-gray-800 mb-3">🚇 Transportation</h3>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm">Used public transit/bike</span>
+                                <button
+                                    onClick={() => updateGoal('transitBike', !todaysData.transitBike)}
+                                    className={`p-2 rounded-full ${todaysData.transitBike ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}
+                                >
+                                    <Check />
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Bonus goal - doesn't affect streak</p>
+                        </div>
+
+                        {/* Date Navigation */}
+                        <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <button
+                                    onClick={() => {
+                                        const newDate = new Date(currentDate);
+                                        newDate.setDate(newDate.getDate() - 1);
+                                        setCurrentDate(newDate.toISOString().split('T')[0]);
+                                    }}
+                                    className="px-3 py-2 bg-gray-100 rounded-lg text-sm"
+                                >
+                                    ← Previous
+                                </button>
+                                <Calendar />
+                                <button
+                                    onClick={() => {
+                                        const today = new Date().toISOString().split('T')[0];
+                                        if (currentDate < today) {
+                                            const newDate = new Date(currentDate);
+                                            newDate.setDate(newDate.getDate() + 1);
+                                            setCurrentDate(newDate.toISOString().split('T')[0]);
+                                        }
+                                    }}
+                                    disabled={currentDate >= new Date().toISOString().split('T')[0]}
+                                    className="px-3 py-2 bg-gray-100 rounded-lg text-sm disabled:opacity-50"
+                                >
+                                    Next →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<DailyGoalsTracker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
